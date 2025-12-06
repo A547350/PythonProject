@@ -2,15 +2,17 @@ import google.generativeai as genai
 from google.generativeai.types import content_types
 import os
 import yfinance as yf
-from dotenv import load_dotenv
+import streamlit as st
 
-load_dotenv()
+# 1. SETUP: Configure API Key using Streamlit's Secret Management
+# This is the secure, recommended way for deployment.
+try:
+    api_key = st.secrets["GEMINI_API_KEY"]
+    genai.configure(api_key=api_key)
+except (FileNotFoundError, KeyError):
+    st.error("GEMINI_API_KEY not found in Streamlit secrets. Please add it to your .streamlit/secrets.toml file.")
+    st.stop()
 
-# 1. SETUP: Configure API Key
-api_key = os.getenv("GEMINI_API_KEY")
-if not api_key:
-    raise ValueError("GEMINI_API_KEY not found in .env file")
-genai.configure(api_key=api_key)
 
 # 2. THE TOOLS: Functions our Agent can use
 def get_stock_price(ticker: str):
@@ -68,12 +70,10 @@ def get_ai_response(prompt):
     response = chat.send_message(prompt)
     
     try:
-        # Loop as long as the model wants to call functions
         while response.candidates[0].content.parts and response.candidates[0].content.parts[0].function_call:
             function_calls = response.candidates[0].content.parts
             tool_responses = []
 
-            # Execute all function calls requested in parallel
             for call in function_calls:
                 tool_name = call.function_call.name
                 if tool_name not in available_tools:
@@ -81,26 +81,23 @@ def get_ai_response(prompt):
                 
                 tool_function = available_tools[tool_name]
                 tool_args = {key: value for key, value in call.function_call.args.items()}
-                
-                # Call the tool and get the result
                 result = tool_function(**tool_args)
                 
                 tool_responses.append(content_types.to_part({
                     "function_response": {"name": tool_name, "response": result}
                 }))
 
-            # Send all tool responses back to the model in a single message
             response = chat.send_message(tool_responses)
 
     except (ValueError, IndexError) as e:
-        # If there's no function call or an unexpected structure, we assume it's a text response
-        print(f"Exiting function-calling loop due to: {e}") # Optional: for debugging
+        print(f"Exiting function-calling loop due to: {e}")
         pass
 
     return response.text
 
-# 4. Example Usage
+# 4. Example Usage (for local testing if needed, though app.py is the main entry)
 if __name__ == "__main__":
-    user_prompt = "What is the price and intraday trend for both RELIANCE.NS and TCS.NS?"
-    ai_response = get_ai_response(user_prompt)
-    print(ai_response)
+    # This part will not run in the Streamlit app context, so it won't have secrets.
+    # It's primarily for direct script testing, which is now less relevant.
+    print("This script is intended to be imported by a Streamlit app.")
+    print("To test, run the main app.py file.")
