@@ -6,7 +6,17 @@ import os
 
 st.set_page_config(layout="wide")
 
-st.title("AI-Powered Trading Studio")
+# --- Title and Logo ---
+logo_path = "logo.png"
+if os.path.exists(logo_path):
+    col1, col2 = st.columns([0.1, 0.9])
+    with col1:
+        st.image(logo_path, width=100)
+    with col2:
+        st.title("AI-Powered Trading Studio")
+else:
+    st.title("AI-Powered Trading Studio")
+
 
 WATCHLIST_FILE = "watchlist.txt"
 
